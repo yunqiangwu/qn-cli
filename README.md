@@ -9,7 +9,7 @@
 > 上传文件
 
 ```
-qn-cli upload assets/** images/*.png --basePath qn-cli/example
+q-cli upload assets/** images/*.png --basePath q-cli/example
 ```
 
 ##### `login`
@@ -17,7 +17,7 @@ qn-cli upload assets/** images/*.png --basePath qn-cli/example
 > 重新设置ak 和 sk
 
 ```
-qn-cli upload assets/** images/*.png
+q-cli upload assets/** images/*.png
 ```
 
 ##### `buckets`
@@ -25,7 +25,7 @@ qn-cli upload assets/** images/*.png
 > bucket 相关操作
 
 ```
-qn-cli buckets list # 列出所有的buckets
+q-cli buckets list # 列出所有的buckets
 ```
 
 ##### `hosts`
@@ -33,7 +33,7 @@ qn-cli buckets list # 列出所有的buckets
 > cdn hosts 相关
 
 ```
-qn-cli hosts [bucket] # 列出某个bucket中的所有映射域名 不输入bucket则会获取到所有的buckets然后选择
+q-cli hosts [bucket] # 列出某个bucket中的所有映射域名 不输入bucket则会获取到所有的buckets然后选择
 ```
 
 ##### `refresh`
@@ -41,15 +41,15 @@ qn-cli hosts [bucket] # 列出某个bucket中的所有映射域名 不输入buck
 > 刷新资源cache
 
 ```
-qn-cli refresh
+q-cli refresh
 ```
 ##### `objects`
 
 > 存储对象相关
 
 ```
-qn-cli objects stats # 查看某个存储对象的数据
-qn-cli objects move # 移动存储对象
-qn-cli objects copy # 复制存储对象
-qn-cli objects delete # 删除存储对象
+q-cli objects stats # 查看某个存储对象的数据
+q-cli objects move # 移动存储对象
+q-cli objects copy # 复制存储对象
+q-cli objects delete # 删除存储对象
 ```
