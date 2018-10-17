@@ -1,4 +1,4 @@
-### qn-cli
+### [q-cli](https://www.npmjs.com/package/@waynew/q-cli)
 
 > a command line tool to operate qiniu cloud object strage
 
