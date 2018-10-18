@@ -38,12 +38,8 @@ export const askObjectKey = async (bucket: string): Promise<{ [key: string]: str
   } as any) as any
 }
 
-export const askDirOrUrl = (): Promise<{ useDir: boolean, value: string }> => {
+export const askUrl = (): Promise<{ useDir: boolean, value: string }> => {
   return inquirer.prompt([{
-    name: 'useDir',
-    type: 'confirm',
-    message: 'Will you enter a dir?'
-  }, {
     name: 'value',
     message: 'Enter your path?'
   }])

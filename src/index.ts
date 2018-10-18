@@ -17,13 +17,19 @@ program
   .option('-d, --dist <dist>', 'Base directory for all source files')
   .option('-p, --prefix <prefix>', 'setting your upload files prefix')
   .option('-b, --bucket <bucket>', 'setting your upload files bucket')
+  .option('-u, --url <url>', 'refresh url')
   .action((options) => {
     upload({
       dist: options.dist,
       basePath: options.prefix,
       bucket: options.bucket,
+    }).then(({ url }) => {
+      return refresh({
+        url: url || options.url,
+      });
     })
   })
+
 program
   .command('buckets')
   .description('show all buckets in your qiniu cdn')
@@ -46,8 +52,11 @@ program
 program
   .command('refresh')
   .description('qiniu storage cache refresh')
-  .action(() => {
-    refresh();
+  .option('-u, --url <url>', 'refresh url')
+  .action((options) => {
+    refresh({
+      url: options.url,
+    });
   })
 
 const objects = program

@@ -1,15 +1,18 @@
 import { refreshResource } from '../apis';
-import { askDirOrUrl } from '../utils/ask';
+import { askUrl } from '../utils/ask';
 
-export const refresh = async () => {
-  const { useDir, value } = await askDirOrUrl();
-  if (useDir) {
-    await refreshResource({
-      dirs: [value]
-    })
-  } else {
-    await refreshResource({
-      urls: [value]
-    })
+
+
+export interface QiniuRefreshOption {
+  url: string;
+}
+
+export const refresh = async ( { url }: QiniuRefreshOption) => {
+  if(!url){
+    const { value } = await askUrl();
+    url = value;
   }
+  await refreshResource({
+    urls: [url]
+  })
 }

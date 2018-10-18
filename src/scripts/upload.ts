@@ -1,10 +1,10 @@
-import { createReadStream } from 'fs';
+import { statSync } from 'fs';
 import { join, relative, sep } from 'path';
 import * as qiniu from 'qiniu';
 import * as gs from 'glob-stream';
 import * as through2 from 'through2';
 
-import { askBuckets, askBasePath } from '../utils/ask';
+import { askBuckets } from '../utils/ask';
 
 import { checkTokens } from '../utils/token';
 import { bucketList, bucketHostNames } from '../apis';
@@ -13,7 +13,7 @@ import * as renderer from '../utils/renderer';
 const cwd = process.cwd();
 
 export interface UploadFileOptions {
-  dir: string;
+  fileDir: string;
   key: string;
   basePath: string;
   putPolicy: qiniu.rs.PutPolicy;
@@ -21,21 +21,35 @@ export interface UploadFileOptions {
   qiniuConf: qiniu.conf.Config;
 }
 export const uploadFile = async ({
-  dir,
+  fileDir,
   key,
   basePath,
   putPolicy,
   mac,
   qiniuConf
 }: UploadFileOptions): Promise<any> => {
-  const readable = createReadStream(dir);
-  return await uploadStream({
-    stream: readable,
-    key: join(basePath, key),
-    putPolicy,
-    mac,
-    qiniuConf
+  // const readable = createReadStream(dir);
+  // return await uploadStream({
+  //   stream: readable,
+  //   key: join(basePath, key),
+  //   putPolicy,
+  //   mac,
+  //   qiniuConf
+  // });
+
+  const token = putPolicy.uploadToken(mac);
+  const putExtra = new qiniu.form_up.PutExtra();
+  const formUploader = new qiniu.form_up.FormUploader(qiniuConf);
+  return new Promise((resolve, reject) => {
+    formUploader.putFile(token, join(basePath, key), fileDir, putExtra, (err: Error, body: any) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(body);
+      }
+    });
   });
+
 }
 
 export interface UploadStreamOptions {
@@ -61,7 +75,9 @@ export const uploadStream = async ({ stream, key, putPolicy, mac, qiniuConf }: U
   });
 }
 
+
 export interface CheckFileOptions {
+  dir: string;
   basePath: string;
   key: string;
   mac: qiniu.auth.digest.Mac;
@@ -95,7 +111,11 @@ export interface QiniuUploaderOption {
   bucket: string;
 }
 
-export default async ({ dist, basePath, bucket }: QiniuUploaderOption) => {
+export interface QiniuUploaderReturn {
+  url: string;
+}
+
+export default async ({ dist, basePath, bucket }: QiniuUploaderOption) : Promise<QiniuUploaderReturn> => {
 
   if( !bucket ) {
     const buckets = await bucketList();
@@ -109,7 +129,7 @@ export default async ({ dist, basePath, bucket }: QiniuUploaderOption) => {
   } else {
     $basePath = basePath;
   }
-  const hostname = hostnames[hostnames.length - 1] || '';
+  const hostname = hostnames[0] || '';
   const { ak, sk } = await checkTokens();
   const mac = new qiniu.auth.digest.Mac(ak, sk);
   const putPolicy =  new qiniu.rs.PutPolicy({
@@ -117,7 +137,8 @@ export default async ({ dist, basePath, bucket }: QiniuUploaderOption) => {
     returnBody: '{"key":"$(key)","hash":"$(etag)","fsize":$(fsize),"bucket":"$(bucket)","name":"$(x:name)"}',
   });
   const qiniuConf = new qiniu.conf.Config();
-  return new Promise((resolve, reject) => {
+  
+  const uploadRes = await new Promise((resolve, reject) => {
     if (Array.isArray(dist)) {
       dist = dist.map(i => join(cwd, i));
     } else {
@@ -127,33 +148,48 @@ export default async ({ dist, basePath, bucket }: QiniuUploaderOption) => {
       .pipe(through2.obj(async(file, _, next) => {
         let filePath = relative(file.base, file.path);
         filePath = filePath.split(sep).join('/');
-        const need = await checkFile({
-          basePath: $basePath,
-          key: filePath,
-          mac,
-          qiniuConf,
-          bucket
-        });
-        if (!need) {
+        // console.log(filePath);
+        if(!statSync(file.path).isFile()) {
           next();
-        } else {
-          /* tslint:disable-next-line */
-          console.log(`uploading → ${filePath} ...`);
-          const body = await uploadFile({
-            dir: file.path,
-            key: filePath,
-            putPolicy,
-            qiniuConf,
-            mac,
-            basePath: $basePath,
-          });
-          /* tslint:disable-next-line */
-          console.log(`success upload -> ${hostname ? `http://${hostname}`: ''}/${body.key}`);
-          next();
+          return;
         }
+        // const need = await checkFile({
+        //   dir: file.path,
+        //   basePath: $basePath,
+        //   key: filePath,
+        //   mac,
+        //   qiniuConf,
+        //   bucket
+        // });
+        // if (!need) {
+        //   next();
+        //   return;
+        // }
+        /* tslint:disable-next-line */
+        console.log(`uploading → ${filePath} ...`);
+        const body = await uploadFile({
+          fileDir: file.path,
+          key: filePath,
+          putPolicy,
+          qiniuConf,
+          mac,
+          basePath: $basePath,
+        });
+        /* tslint:disable-next-line */
+        console.log(`success upload -> ${hostname ? `http://${hostname}`: ''}/${body.key}`);
+        next();
       }));
     stream.on('data', () => { });
-    stream.on('end', resolve);
+    stream.on('end', () => resolve({
+      url: `http://${hostname}/`
+    }));
     stream.on('error', reject);
-  });
+  }).catch((err)=>{
+    console.log('ERROR: ', err)
+  }) as QiniuUploaderReturn;
+
+  return {
+    url: uploadRes.url
+  };
+
 }
