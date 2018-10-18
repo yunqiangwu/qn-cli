@@ -21,8 +21,10 @@ export const checkTokens = async (): Promise<Token> => {
   }
 }
 
-export const resetToken = async (): Promise<Token> => {
-  const token = await askTokens();
+export const resetToken = async (token?: Token): Promise<Token> => {
+  if(!token || !token.ak || !token.sk) {
+    token = await askTokens();
+  }
   writeFileSync(tokenfile, JSON.stringify(token), 'utf8');
   cachedToken = token;
   return token;

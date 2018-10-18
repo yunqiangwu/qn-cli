@@ -93,8 +93,13 @@ const objects = program
 program
   .command('login')
   .description('login qiniu (reset qiniu access token and secrect token)')
-  .action(() => {
-    login.reset();
+  .option('-a, --ak <ak>', 'setting ak')
+  .option('-s, --sk <sk>', 'setting sk')
+  .action((option) => {
+    login.reset({
+      ak: option.ak,
+      sk: option.sk,
+    });
   })
 
 const result = program.parse(process.argv);
