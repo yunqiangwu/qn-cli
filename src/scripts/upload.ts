@@ -80,8 +80,9 @@ export const checkFile = ({ basePath, key, mac, qiniuConf, bucket }: CheckFileOp
           resolve(true);
         } else {
           /* tslint:disable-next-line */
-          console.log(`文件已经存在 跳过上传 → ${key}`);
-          resolve(false);
+          console.log(`文件已经存在 覆盖上传 → ${key}`);
+          // resolve(false); // todo
+          resolve(true);
         }
       }
     });
@@ -90,17 +91,21 @@ export const checkFile = ({ basePath, key, mac, qiniuConf, bucket }: CheckFileOp
 
 export interface QiniuUploaderOption {
   basePath?: string;
-  glob: string | string[];
+  dist: string | string[];
+  bucket: string;
 }
 
-export default async ({ glob, basePath }: QiniuUploaderOption) => {
-  const buckets = await bucketList();
-  const { bucket } = await askBuckets(buckets);
+export default async ({ dist, basePath, bucket }: QiniuUploaderOption) => {
+
+  if( !bucket ) {
+    const buckets = await bucketList();
+    bucket = (await askBuckets(buckets)).bucket;
+  }
   const hostnames = await bucketHostNames(bucket);
   renderer.hostnames(hostnames, bucket);
   let $basePath: string;
   if (!basePath) {
-    $basePath = await askBasePath();
+    $basePath = '';
   } else {
     $basePath = basePath;
   }
@@ -113,12 +118,12 @@ export default async ({ glob, basePath }: QiniuUploaderOption) => {
   });
   const qiniuConf = new qiniu.conf.Config();
   return new Promise((resolve, reject) => {
-    if (Array.isArray(glob)) {
-      glob = glob.map(i => join(cwd, i));
+    if (Array.isArray(dist)) {
+      dist = dist.map(i => join(cwd, i));
     } else {
-      glob = join(cwd, glob);
+      dist = join(cwd, dist);
     }
-    const stream = gs(glob)
+    const stream = gs(dist)
       .pipe(through2.obj(async(file, _, next) => {
         let filePath = relative(file.base, file.path);
         filePath = filePath.split(sep).join('/');

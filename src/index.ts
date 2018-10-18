@@ -12,13 +12,16 @@ const packageJson = require('../package.json') as any;
 program.version(packageJson.version);
 
 program
-  .command('upload [dirs...]')
+  .command('upload')
   .description('upload files with glob string or file path')
+  .option('-d, --dist <dist>', 'Base directory for all source files')
   .option('-p, --prefix <prefix>', 'setting your upload files prefix')
-  .action((dirs, options) => {
+  .option('-b, --bucket <bucket>', 'setting your upload files bucket')
+  .action((options) => {
     upload({
-      glob: dirs,
-      basePath: options.prefix
+      dist: options.dist,
+      basePath: options.prefix,
+      bucket: options.bucket,
     })
   })
 program
