@@ -1,6 +1,6 @@
 {
   "name": "@waynew/q-cli",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "qn api caller",
   "main": "lib/index.js",
   "bin": "lib/index.js",
