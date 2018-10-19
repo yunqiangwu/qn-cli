@@ -1,4 +1,4 @@
-import { statSync, createReadStream } from 'fs';
+import { statSync } from 'fs';
 import { join, relative, sep } from 'path';
 import * as qiniu from 'qiniu';
 import * as gs from 'glob-stream';
@@ -16,7 +16,7 @@ export interface UploadFileOptions {
   fileDir: string;
   key: string;
   basePath: string;
-  putPolicy: qiniu.rs.PutPolicy;
+  bucket: string;
   mac: qiniu.auth.digest.Mac;
   qiniuConf: qiniu.conf.Config;
 }
@@ -24,39 +24,47 @@ export const uploadFile = async ({
   fileDir,
   key,
   basePath,
-  putPolicy,
+  bucket,
   mac,
   qiniuConf
 }: UploadFileOptions): Promise<any> => {
 
-
+  const putPolicy =  new qiniu.rs.PutPolicy({
+    scope: bucket,
+    returnBody: '{"key":"$(key)","hash":"$(etag)","fsize":$(fsize),"bucket":"$(bucket)","name":"$(x:name)"}',
+  });
   const token = putPolicy.uploadToken(mac);
   const putExtra = new qiniu.form_up.PutExtra();
   const formUploader = new qiniu.form_up.FormUploader(qiniuConf);
-  
-  const body = await new Promise((resolve, reject) => {
-    formUploader.putFile(token, join(basePath, key), fileDir, putExtra, (err: Error, body: any) => {
+
+  const doAction = () => new Promise((resolve, reject) => {
+    formUploader.putFile(token, join(basePath, key), fileDir, putExtra, (err: Error, respBody: any) => {
       if (err) {
         reject(err);
       } else {
-        resolve(body);
+        resolve(respBody);
       }
     });
-  }) as any;
+  });
+  
+  let body = await doAction() as any;
 
-  if(body.key){
-    return body;
+  if (!body.key) {
+    await new Promise((resolve, reject) => {
+      const bucketManager = new qiniu.rs.BucketManager(mac, qiniuConf);
+      bucketManager.delete(bucket, join(basePath, key), function(err, respBody) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(respBody);
+        }
+      });  
+    });       
   }
 
-  const readable = createReadStream(fileDir);
-  return await uploadStream({
-    stream: readable,
-    key: join(basePath, key),
-    putPolicy,
-    mac,
-    qiniuConf
-  });
+  body = await doAction() as any;
 
+  return body;
 }
 
 export interface UploadStreamOptions {
@@ -81,7 +89,6 @@ export const uploadStream = async ({ stream, key, putPolicy, mac, qiniuConf }: U
     });
   });
 }
-
 
 export interface CheckFileOptions {
   dir: string;
@@ -139,10 +146,6 @@ export default async ({ dist, basePath, bucket }: QiniuUploaderOption) : Promise
   const hostname = hostnames[0] || '';
   const { ak, sk } = await checkTokens();
   const mac = new qiniu.auth.digest.Mac(ak, sk);
-  const putPolicy =  new qiniu.rs.PutPolicy({
-    scope: bucket,
-    returnBody: '{"key":"$(key)","hash":"$(etag)","fsize":$(fsize),"bucket":"$(bucket)","name":"$(x:name)"}',
-  });
   const qiniuConf = new qiniu.conf.Config();
   
   const uploadRes = await new Promise((resolve, reject) => {
@@ -174,12 +177,12 @@ export default async ({ dist, basePath, bucket }: QiniuUploaderOption) : Promise
         // }
         /* tslint:disable-next-line */
         console.log(`uploading → ${filePath} ...`);
-        const body = await uploadFile({
+        let body = await uploadFile({
           fileDir: file.path,
           key: filePath,
-          putPolicy,
           qiniuConf,
           mac,
+          bucket,
           basePath: $basePath,
         });
         /* tslint:disable-next-line */
