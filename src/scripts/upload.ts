@@ -1,4 +1,4 @@
-import { statSync } from 'fs';
+import { statSync, createReadStream } from 'fs';
 import { join, relative, sep } from 'path';
 import * as qiniu from 'qiniu';
 import * as gs from 'glob-stream';
@@ -28,19 +28,13 @@ export const uploadFile = async ({
   mac,
   qiniuConf
 }: UploadFileOptions): Promise<any> => {
-  // const readable = createReadStream(dir);
-  // return await uploadStream({
-  //   stream: readable,
-  //   key: join(basePath, key),
-  //   putPolicy,
-  //   mac,
-  //   qiniuConf
-  // });
+
 
   const token = putPolicy.uploadToken(mac);
   const putExtra = new qiniu.form_up.PutExtra();
   const formUploader = new qiniu.form_up.FormUploader(qiniuConf);
-  return new Promise((resolve, reject) => {
+  
+  const body = await new Promise((resolve, reject) => {
     formUploader.putFile(token, join(basePath, key), fileDir, putExtra, (err: Error, body: any) => {
       if (err) {
         reject(err);
@@ -48,6 +42,19 @@ export const uploadFile = async ({
         resolve(body);
       }
     });
+  }) as any;
+
+  if(body.key){
+    return body;
+  }
+
+  const readable = createReadStream(fileDir);
+  return await uploadStream({
+    stream: readable,
+    key: join(basePath, key),
+    putPolicy,
+    mac,
+    qiniuConf
   });
 
 }
